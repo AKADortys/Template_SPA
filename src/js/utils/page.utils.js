@@ -2,33 +2,37 @@ import { AppDom } from "./dom.utils.js";
 
 export class AppPage {
   constructor() {
-    this.cachePages = new Map();
+    this.cachePages = new Map(); // initialise une "map" qui fonctionne comme une petite bdd : {key: string value:{html: string, script: string}}
     this.defaultPage = "home";
-    this.appDom = new AppDom(document.querySelector("main"));
+    this.appDom = new AppDom(document.querySelector("main")); // initialise l'obj pour manipuler le dom
   }
 
-  // initialise l'app
+  // Initialise l'application
   async init() {
-    location.href = `#${this.defaultPage}`;
-    await this.loadPage(this.defaultPage);
+    location.href = `#${this.defaultPage}`; //change le hash de l'url
+    await this.loadPage(this.defaultPage); //charge la page par défaut
     window.addEventListener("hashchange", async (e) => {
-      const url = new URL(e.newURL);
-      const hash = url.hash.replace("#", "");
+      // ajoute un evenement sur la fentre du navigateur. sur changement de hash execute la function  'localhost:5500/index.html#home' => return'home' => loadPage('home')
+      const url = new URL(e.newURL); //recupère l'url de l'event
+      const hash = url.hash.replace("#", ""); //récupère le hash et le replace de '#home' à 'home'
       if (hash) {
-        await this.loadPage(hash);
+        //Vérifie si un hash est présent
+        await this.loadPage(hash); //charge la page renvoyée par traitement du hash
       }
     });
   }
 
-  // charge une page
+  // Charge une page
   async loadPage(page) {
-    // vérifie si la page est déjà en cache
+    //page = string
+    // Vérifie si la page est déjà en cache
     if (this.cachePages.has(page)) {
-      const cachedPage = this.cachePages.get(page);
-      this.appDom.updateContent(cachedPage.html);
+      const cachedPage = this.cachePages.get(page); //charge le contenue mis en cache
+      this.appDom.updateContent(cachedPage.html); //met à jour le container
       try {
         if (cachedPage.script) {
-          this.appDom.executeScript(cachedPage.script, page);
+          // si un script est associé à cette page
+          this.appDom.executeScript(cachedPage.script, page); // crée un balise script pour la page
         }
       } catch (error) {
         console.error(
@@ -39,36 +43,38 @@ export class AppPage {
       return;
     }
 
-    // charge la page HTML et le script associé
-    const htmlResponse = await axios
-      .get(`src/pages/${page}.html`)
-      .catch(() => null);
-    const scriptResponse = await axios
-      .get(`src/js/pages/${page}.js`)
-      .catch(() => null);
+    try {
+      // Charge la page HTML et le script associé
+      const htmlResponse = await axios.get(`src/pages/${page}.html`); //requete fetch pour le html
+      const scriptResponse = await axios
+        .get(`src/js/pages/${page}.js`)
+        .catch(() => null); //requete fetch pour le script
 
-    if (!htmlResponse) {
+      if (htmlResponse.status === 200) {
+        // si la pages est trouvée mise en cache d'un obj avec deux props 'html' et 'script' et pour clé le paramètre fournis à la fonction
+        const scriptContent = scriptResponse?.data || null;
+        this.cachePages.set(page, {
+          html: htmlResponse.data, //prop 'html'
+          script: scriptContent, //prop 'script'
+        });
+        this.appDom.updateContent(htmlResponse.data); // mise à jour du container
+
+        try {
+          if (scriptContent) {
+            //si un script est trouvé
+            this.appDom.executeScript(scriptContent, page); //execute le script
+          }
+        } catch (error) {
+          console.error(
+            "Une erreur est survenue lors de l'exécution du script:",
+            error
+          );
+        }
+      }
+    } catch (error) {
+      //si le string fournis nne trouve ni html ni script il renvoie page 404
+      console.error(`Erreur lors du chargement de la page '${page}':`, error);
       location.href = "#404";
-      return;
-    }
-
-    if (htmlResponse.status === 200) {
-      const scriptContent = scriptResponse?.data || null;
-      this.cachePages.set(page, {
-        html: htmlResponse.data,
-        script: scriptContent,
-      });
-      this.appDom.updateContent(htmlResponse.data);
-      try {
-        if (scriptContent) {
-          this.appDom.executeScript(scriptContent, page);
-        }
-      } catch (error) {
-        console.error(
-          "Une erreur est survenue lors de l'exécution du script:",
-          error
-        );
-      }
     }
   }
 }

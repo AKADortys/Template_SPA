@@ -1,14 +1,14 @@
 export class AppDom {
   constructor(appElement) {
-    this.contentElement = appElement;
+    this.contentElement = appElement; // garde l'élement html founis pour les opération
   }
   // vider le conteneur
   clearContent() {
-    this.contentElement.innerHTML = "";
+    this.contentElement.innerHTML = ""; // vider le conteneur
   }
   // mettre à jour le conteneur avec du HTML
   updateContent(html) {
-    if (typeof html === "string") this.contentElement.innerHTML = html;
+    if (typeof html === "string") this.contentElement.innerHTML = html; // met à jour le conteneur avec une vérification du type fournis avant
   }
   // exécuter le script d'une page
   executeScript(scriptContent, page) {
